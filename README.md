@@ -49,6 +49,30 @@ email it to yourself to read later.
 
 That's the whole thing. No accounts, no signup, no server of ours involved.
 
+### Deploy your own on Vercel (one click-ish)
+
+Want a hosted URL you can open from anywhere instead of running it locally? The
+app ships ready for Vercel's Python runtime.
+
+```bash
+npm i -g vercel      # if you don't have it
+vercel               # from the repo root — follow the prompts
+vercel --prod        # promote to your production URL
+```
+
+Or import the GitHub repo at [vercel.com/new](https://vercel.com/new) and deploy
+with the defaults — no build settings to change.
+
+How it's wired: `api/index.py` exposes the same Flask `app` as a serverless
+function, and `vercel.json` routes every path to it (`maxDuration` is bumped to
+60s because fetching + summarising mail can take a while).
+
+**Still no secrets to configure** — visitors type their own inbox + Claude key
+into the page each time; you don't add any environment variables. A couple of
+serverless caveats: outbound IMAP must be reachable from the function, and very
+large inboxes can bump the 60-second limit (lower "days" if so). If you want a
+guaranteed-private setup, running locally is still the surest option.
+
 ## Option B — the command line
 
 Prefer a script you can schedule? Same engine, no web UI.
@@ -148,7 +172,9 @@ private setup remains: everyone runs their own copy locally.
 
 | File | What it is |
 | --- | --- |
-| `app.py` | The web tool — a thin Flask layer around the engine. |
+| `app.py` | The web app — Flask frontend (onboarding + on-device settings) around the engine. Runs locally with `python app.py`. |
+| `api/index.py` | Vercel serverless entry point — serves the same `app`. |
+| `vercel.json` | Vercel routing + function config. |
 | `newsletter_digest.py` | The engine: IMAP fetch, Claude summaries, HTML digest. Usable as a CLI on its own. |
 | `sample_digest.html` | An example of what the finished digest looks like. |
 | `config.example.env` | Template for the CLI's `.env` (copy to `.env`). |

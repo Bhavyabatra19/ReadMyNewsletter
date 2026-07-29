@@ -18,3 +18,6 @@ env/
 run.log
 *.log
 .DS_Store
+
+# Vercel
+.vercel
