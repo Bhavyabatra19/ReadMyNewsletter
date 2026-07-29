@@ -1,0 +1,20 @@
+# Never commit real credentials
+.env
+*.env
+!config.example.env
+
+# Generated digests
+digests/
+*.digest.html
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Logs / OS cruft
+run.log
+*.log
+.DS_Store

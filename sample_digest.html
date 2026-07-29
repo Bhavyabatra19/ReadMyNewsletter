@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Newsletter Digest · last 7 days</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1a17;
+    --ink-soft: #5c574f;
+    --line: #e6e1d7;
+    --paper: #f7f4ee;
+    --card: #fffdf8;
+    --accent: #4f6df5;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 18px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* Masthead */
+  .masthead {
+    padding: 40px 0 24px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 0 0 10px;
+  }
+  .masthead h1 {
+    font-size: clamp(34px, 8vw, 52px); font-weight: 600;
+    line-height: 1.02; margin: 0; letter-spacing: -0.01em;
+  }
+  .stats {
+    display: flex; gap: 22px; flex-wrap: wrap;
+    margin-top: 18px;
+    font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .stats b { color: var(--ink); font-weight: 500; }
+
+  /* Filter chips */
+  .filters {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 14px 0; margin: 0 -20px 8px; padding-left: 20px; padding-right: 20px;
+    background: linear-gradient(var(--paper) 70%, transparent);
+    -webkit-overflow-scrolling: touch;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; cursor: pointer;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+    letter-spacing: .02em;
+    border: 1px solid var(--line); background: var(--card);
+    color: var(--ink-soft); border-radius: 999px;
+    padding: 7px 14px; white-space: nowrap;
+    transition: all .15s ease;
+  }
+  .chip span { opacity: .55; margin-left: 3px; }
+  .chip:hover { border-color: var(--chip, var(--ink)); color: var(--ink); }
+  .chip--active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip--active span { opacity: .7; }
+
+  /* Category groups */
+  .group { margin-top: 34px; }
+  .group__title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 600; letter-spacing: .02em;
+    text-transform: uppercase; font-family: "IBM Plex Mono", monospace;
+    color: var(--ink); margin: 0 0 14px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+  .cards { display: flex; flex-direction: column; gap: 14px; }
+
+  /* Newsletter card */
+  .card {
+    position: relative; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px 20px 22px; overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px; background: var(--accent);
+  }
+  .card__head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; margin-bottom: 6px;
+  }
+  .card__from {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px;
+    font-weight: 500; color: var(--accent); letter-spacing: .01em;
+  }
+  .card__meta {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
+    color: var(--ink-soft); white-space: nowrap;
+  }
+  .card__title {
+    font-size: 22px; font-weight: 600; line-height: 1.2;
+    margin: 2px 0 8px; letter-spacing: -0.01em;
+  }
+  .card__summary { margin: 0; color: var(--ink); }
+  .points {
+    margin: 12px 0 0; padding: 0; list-style: none;
+    border-top: 1px solid var(--line); padding-top: 12px;
+  }
+  .points li {
+    position: relative; padding-left: 18px; margin-bottom: 5px;
+    font-size: 15.5px; color: var(--ink-soft); line-height: 1.4;
+  }
+  .points li::before {
+    content: "→"; position: absolute; left: 0;
+    color: var(--accent); font-family: "IBM Plex Mono", monospace;
+  }
+
+  .empty { text-align: center; color: var(--ink-soft); padding: 60px 0; }
+  footer {
+    margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--ink-soft); text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="masthead">
+      <p class="eyebrow">Your reading room · last 7 days</p>
+      <h1>The Digest</h1>
+      <div class="stats">
+        <span><b>6</b> newsletters</span>
+        <span><b>47</b> min total read</span>
+        <span>Generated Wednesday, July 29 · 05:13 AM</span>
+      </div>
+    </header>
+
+    <nav class="filters"><button class="chip chip--active" data-cat="all">All <span>6</span></button><button class="chip" data-cat="Tech &amp; AI" style="--chip:#4f6df5">Tech &amp; AI <span>2</span></button><button class="chip" data-cat="Business &amp; Finance" style="--chip:#1f9d6b">Business &amp; Finance <span>1</span></button><button class="chip" data-cat="News &amp; Politics" style="--chip:#c2472f">News &amp; Politics <span>1</span></button><button class="chip" data-cat="Design &amp; Product" style="--chip:#9b5de5">Design &amp; Product <span>1</span></button><button class="chip" data-cat="Personal Growth" style="--chip:#5a8f3d">Personal Growth <span>1</span></button></nav>
+
+    <main id="feed">
+        <section class="group" data-cat="Tech &amp; AI">
+          <h2 class="group__title"><span class="dot" style="background:#4f6df5"></span>Tech &amp; AI</h2>
+          <div class="cards">
+            <article class="card" style="--accent:#4f6df5">
+              <header class="card__head">
+                <span class="card__from">Stratechery</span>
+                <span class="card__meta">Jul 28 · 9 min</span>
+              </header>
+              <h3 class="card__title">Aggregation Theory and the AI Platform Shift</h3>
+              <p class="card__summary">Ben argues the next platform battle is over the interface layer, not the model itself, and incumbents with distribution will capture most of the value. He maps how bundling changes when inference gets cheap.</p>
+              <ul class="points"><li>Distribution beats raw model quality</li><li>Interface layer is the new moat</li><li>Cheap inference reshapes bundling</li></ul>
+            </article>
+            <article class="card" style="--accent:#4f6df5">
+              <header class="card__head">
+                <span class="card__from">The Batch (DeepLearning.AI)</span>
+                <span class="card__meta">Jul 27 · 6 min</span>
+              </header>
+              <h3 class="card__title">Small models are eating the edge</h3>
+              <p class="card__summary">On-device models crossed a quality threshold this quarter, making offline assistants viable on mid-range phones. Andrew highlights three open releases worth trying.</p>
+              <ul class="points"><li>On-device quality jumped</li><li>Three notable open releases</li><li>Offline assistants now viable</li></ul>
+            </article></div>
+        </section>
+        <section class="group" data-cat="Business &amp; Finance">
+          <h2 class="group__title"><span class="dot" style="background:#1f9d6b"></span>Business &amp; Finance</h2>
+          <div class="cards">
+            <article class="card" style="--accent:#1f9d6b">
+              <header class="card__head">
+                <span class="card__from">Money Stuff</span>
+                <span class="card__meta">Jul 28 · 12 min</span>
+              </header>
+              <h3 class="card__title">The everything-is-securities-fraud market</h3>
+              <p class="card__summary">Matt walks through a strange arbitrage where a merger spread refused to close, and what it says about how the market prices deal risk. Wry as ever.</p>
+              <ul class="points"><li>Merger spread stayed wide</li><li>Deal-risk mispricing</li><li>A cameo from crypto</li></ul>
+            </article></div>
+        </section>
+        <section class="group" data-cat="News &amp; Politics">
+          <h2 class="group__title"><span class="dot" style="background:#c2472f"></span>News &amp; Politics</h2>
+          <div class="cards">
+            <article class="card" style="--accent:#c2472f">
+              <header class="card__head">
+                <span class="card__from">Semafor Flagship</span>
+                <span class="card__meta">Jul 28 · 7 min</span>
+              </header>
+              <h3 class="card__title">What moved this week</h3>
+              <p class="card__summary">A quick global roundup: elections, energy prices, and one under-covered story from the Sahel. Balanced and skimmable.</p>
+              <ul class="points"><li>Energy prices ticking up</li><li>Under-covered Sahel story</li></ul>
+            </article></div>
+        </section>
+        <section class="group" data-cat="Design &amp; Product">
+          <h2 class="group__title"><span class="dot" style="background:#9b5de5"></span>Design &amp; Product</h2>
+          <div class="cards">
+            <article class="card" style="--accent:#9b5de5">
+              <header class="card__head">
+                <span class="card__from">Lenny&#x27;s Newsletter</span>
+                <span class="card__meta">Jul 26 · 8 min</span>
+              </header>
+              <h3 class="card__title">How the best PMs run discovery</h3>
+              <p class="card__summary">A breakdown of continuous discovery habits from teams that ship well, with a lightweight weekly cadence you can copy. Includes a template.</p>
+              <ul class="points"><li>Weekly discovery cadence</li><li>Talk to 3 users/week</li><li>Copyable template</li></ul>
+            </article></div>
+        </section>
+        <section class="group" data-cat="Personal Growth">
+          <h2 class="group__title"><span class="dot" style="background:#5a8f3d"></span>Personal Growth</h2>
+          <div class="cards">
+            <article class="card" style="--accent:#5a8f3d">
+              <header class="card__head">
+                <span class="card__from">Ness Labs</span>
+                <span class="card__meta">Jul 27 · 5 min</span>
+              </header>
+              <h3 class="card__title">Rest is a skill, not a reward</h3>
+              <p class="card__summary">Reframes rest as an active practice you schedule rather than something you earn after burnout. Small experiments to try this week.</p>
+              <ul class="points"><li>Schedule rest deliberately</li><li>Rest before you&#x27;re depleted</li></ul>
+            </article></div>
+        </section></main>
+
+    <footer>Auto-collected from your newsletter inbox · tap a category to filter</footer>
+  </div>
+
+<script>
+  const chips = document.querySelectorAll('.chip');
+  const groups = document.querySelectorAll('.group');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    chips.forEach(c => c.classList.remove('chip--active'));
+    chip.classList.add('chip--active');
+    const cat = chip.dataset.cat;
+    groups.forEach(g => {
+      g.style.display = (cat === 'all' || g.dataset.cat === cat) ? '' : 'none';
+    });
+  }));
+</script>
+</body>
+</html>
