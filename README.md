@@ -1,95 +1,91 @@
 # ReadMyNewsletter
 
-**Free, open-source, self-hosted.** Turn a cluttered newsletter inbox into one
-clean, categorised reading digest you can skim on your phone whenever you have a
-spare ten minutes — without handing your inbox or your API key to anyone.
-
-Everyone runs their **own** copy and brings their **own** credentials. This
-project ships **no keys of any kind** — not the maintainer's, not anyone's.
+**Free & open source.** Turn a cluttered newsletter inbox into one clean,
+categorised reading digest — set it up once, then just log in and read. A
+background job rebuilds your digest every day, so you never have to reconnect or
+run anything by hand.
 
 ## The idea
 
 1. Make **one dedicated email** just for newsletters (your "dummy" inbox).
 2. Re-subscribe your newsletters there (or forward them — see below).
-3. Run ReadMyNewsletter. It logs into that inbox, pulls recent newsletters,
-   summarises and categorises each one with Claude, and builds a single
-   mobile-friendly HTML digest grouped by topic, with read-time estimates.
-4. Read on the go. Two ways to run it: a **web tool** (a page where you type your
-   inbox + key and get a digest back) or the **command line**.
+3. Sign up, connect that inbox once, and add your Claude API key.
+4. Every day a worker logs in, pulls recent newsletters, summarises and
+   categorises each with Claude, and saves a mobile-friendly digest.
+5. **Just log in to read the latest** — grouped by topic, with read-time
+   estimates. No inbox clutter.
 
-## Privacy first (read this)
+## Two ways to use it
 
-- **Your credentials are never stored.** In the web tool they're used for one
-  request to build the digest, then dropped — nothing is written to disk, logged,
-  or put in a database.
-- **No secrets live in this repo.** You supply your own IMAP app password and
-  your own Anthropic API key at run time.
-- **Run it on your own machine** (the default) and those credentials never leave
-  it. Only expose the app to a network if you understand the tradeoffs (see
-  [Hosting it for others](#hosting-it-for-others)).
-- **It never marks your mail as read** (uses IMAP `BODY.PEEK`).
+| | **Account app** (this is the default) | **Stateless CLI** |
+| --- | --- | --- |
+| How | Log in → dashboard of daily digests | Run a script, get an HTML file |
+| Storage | Accounts + encrypted credentials in SQLite | Nothing stored |
+| Daily refresh | Automatic (background scheduler) | You schedule cron yourself |
+| Best for | "Set and forget", read on any device | Maximum privacy, one machine |
 
 ---
 
-## Option A — the web tool (easiest)
-
-A tiny local web app: open a page, fill in the form, get your digest.
+## Run the account app
 
 ```bash
 git clone https://github.com/bhavyabatra19/readmynewsletter.git
 cd readmynewsletter
 pip install -r requirements.txt
-python app.py
+export APP_SECRET="a-long-random-string"   # encrypts stored credentials
+python app.py                              # http://127.0.0.1:5000
 ```
 
-Then open **http://127.0.0.1:5000** in your browser. Pick your provider, enter
-your newsletter address + app password, optionally paste your Anthropic API key,
-and hit **Build my digest**. The digest opens right in the browser — save it, or
-email it to yourself to read later.
+Open the page, **create an account**, connect your inbox, and your first digest
+builds immediately. After that the built-in scheduler refreshes it daily — every
+time you log in, the newest digest is waiting.
 
-That's the whole thing. No accounts, no signup, no server of ours involved.
+- `APP_SECRET` is the key that encrypts stored inbox passwords + API keys. Set it
+  to a long random value and keep it stable, or logins can't decrypt their
+  secrets. If unset, a random one is generated and saved to `.app_secret`.
+- The app binds to `127.0.0.1` locally. Set `HOST=0.0.0.0 PORT=8000` to expose it.
 
-### Deploy your own on Vercel (one click-ish)
+### How the daily refresh works
 
-Want a hosted URL you can open from anywhere instead of running it locally? The
-app ships ready for Vercel's Python runtime.
+- **In-process scheduler:** `python app.py` (and the Docker image) run a
+  background thread that rebuilds every auto-refresh account's digest once its
+  latest one is older than ~20h. Tune with `REFRESH_MIN_AGE_HOURS` and
+  `SCHEDULER_TICK_SECONDS`.
+- **External cron (for multi-worker setups):** run the web app under gunicorn and
+  drive refreshes from cron instead:
+  ```
+  0 7 * * *  cd /app && python worker.py        # daily at 7am
+  ```
+  `python worker.py --force` refreshes everyone immediately, ignoring the age
+  check.
 
+---
+
+## Deploy it (persistent host)
+
+The account app needs a persistent disk (for SQLite) and a long-running process
+(for the scheduler), so deploy it as a container / long-lived service — **Railway,
+Render, Fly.io, or any VPS.** Vercel's serverless model can't keep the database
+or run the scheduler on its own (see the note below).
+
+**Docker**
 ```bash
-npm i -g vercel      # if you don't have it
-vercel               # from the repo root — follow the prompts
-vercel --prod        # promote to your production URL
+docker build -t readmynewsletter .
+docker run -p 8000:8000 -e APP_SECRET="..." -v rmn_data:/data readmynewsletter
 ```
+The volume at `/data` persists the SQLite DB and generated secret.
 
-Or import the GitHub repo at [vercel.com/new](https://vercel.com/new) and deploy
-with the defaults — no build settings to change.
+**Railway / Render / Fly** — point them at the repo. The included `Procfile`
+(`web: python app.py`) and `Dockerfile` work out of the box. Set `APP_SECRET` (and
+`COOKIE_SECURE=1` once you're on HTTPS) as environment variables, and attach a
+persistent volume mounted where `DATABASE_PATH` points.
 
-How it's wired: `api/index.py` exposes the same Flask `app` as a serverless
-function, and `vercel.json` routes every path to it (`maxDuration` is bumped to
-60s because fetching + summarising mail can take a while).
-
-**Still no secrets to configure** — visitors type their own inbox + Claude key
-into the page each time; you don't add any environment variables. A couple of
-serverless caveats: outbound IMAP must be reachable from the function, and very
-large inboxes can bump the 60-second limit (lower "days" if so). If you want a
-guaranteed-private setup, running locally is still the surest option.
-
-## Option B — the command line
-
-Prefer a script you can schedule? Same engine, no web UI.
-
-```bash
-pip install -r requirements.txt
-cp config.example.env .env      # then edit .env with your inbox + key
-set -a && source .env && set +a # load your .env
-
-python newsletter_digest.py          # last 7 days, unread only
-python newsletter_digest.py --days 3 # last 3 days
-python newsletter_digest.py --all    # include already-read mail
-python newsletter_digest.py --no-ai  # skip Claude, group by sender
-```
-
-The digest lands in `digests/digest_YYYY-MM-DD.html`. Open in any browser.
-`.env` and `digests/` are git-ignored so you can't commit them by accident.
+**Vercel** — the repo still includes `api/index.py` + `vercel.json`, but account
+mode isn't a natural fit there: the filesystem is ephemeral (SQLite would reset)
+and background threads don't persist. To run it on Vercel you'd need an external
+database (e.g. Neon Postgres — would require swapping `store.py`'s SQLite calls)
+and a **Vercel Cron** job hitting `worker.py` daily. For most people a persistent
+host is far simpler.
 
 ---
 
@@ -101,86 +97,83 @@ Any provider with IMAP works. Gmail is easiest. Two ways to fill it:
 - **Subscribe fresh:** use this new address when signing up for newsletters.
 - **Move existing ones:** in your main inbox, add a filter that forwards anything
   with an "Unsubscribe" link (or specific senders) to the new address.
-  In Gmail: Settings → Filters → forward to your dummy address.
 
 ### 2. Get an app password (important)
 IMAP needs an **app password**, not your normal login password, if you have
 2-factor auth on (you should).
 
-- **Gmail:** enable 2-Step Verification, then myaccount.google.com → Security →
-  App passwords → generate one.
+- **Gmail:** 2-Step Verification → myaccount.google.com → Security → App passwords.
 - **Outlook/Office365:** account.microsoft.com → Security → Advanced → App passwords.
 - **Yahoo:** Account Security → Generate app password.
-- **Proton Mail:** requires Proton Bridge (uses 127.0.0.1).
+- **Proton Mail:** requires Proton Bridge (127.0.0.1).
 
 ### 3. Get a Claude API key (optional but recommended)
-Sign in at console.anthropic.com and create a key. This powers the summaries and
-categorisation — usually a few cents per run on Haiku. Without a key, untick
-"Use AI" in the web tool (or use the CLI's `--no-ai`) to group by sender with no
-summaries.
+From console.anthropic.com — usually a few cents per run on Haiku. Without one,
+untick "Use AI" and digests group by sender with no summaries.
 
 ---
 
-## Read it on the go
+## Privacy & security
 
-- **Simplest:** in the web tool, email the digest to yourself and open it on your
-  phone. The HTML is fully self-contained.
-- **CLI:** put the `digests/` folder in Dropbox / Google Drive / iCloud and open
-  the file from your phone's Drive app, or host it anywhere static.
+- **Account passwords** are hashed (scrypt), never stored in the clear.
+- **Inbox app-password and API key** are **encrypted at rest** (AES via Fernet,
+  keyed from `APP_SECRET`). They're required in encrypted form *only* because the
+  daily worker must log in while you're away — that's the tradeoff for "don't
+  connect daily". They're never shown back to you or written to logs.
+- **CSRF protection** on every state-changing form; session cookies are
+  HttpOnly + SameSite (+ Secure when `COOKIE_SECURE=1`).
+- **It never marks your mail as read** (IMAP `BODY.PEEK`).
+- **No secrets live in this repository.** `APP_SECRET`, the database, and
+  `.app_secret` are all git-ignored.
+- Want **zero server-side storage**? Use the stateless CLI below and schedule it
+  yourself.
 
-## Schedule it (set and forget)
+---
 
-The CLI is the piece to schedule.
+## Stateless CLI (no account, nothing stored)
 
-**macOS / Linux (cron)** — every day at 7am:
+```bash
+pip install -r requirements.txt
+cp config.example.env .env      # edit with your inbox + key
+set -a && source .env && set +a
+
+python newsletter_digest.py          # last 7 days, unread only
+python newsletter_digest.py --days 3
+python newsletter_digest.py --all    # include already-read mail
+python newsletter_digest.py --no-ai  # skip Claude, group by sender
 ```
-0 7 * * * cd /path/to/readmynewsletter && set -a && . ./.env && set +a && /usr/bin/python3 newsletter_digest.py >> run.log 2>&1
+
+Digests land in `digests/digest_YYYY-MM-DD.html`. Schedule with cron:
+```
+0 7 * * * cd /path/to/readmynewsletter && set -a && . ./.env && set +a && python3 newsletter_digest.py >> run.log 2>&1
 ```
 
-**Windows** — Task Scheduler → Create Basic Task → Daily → run
-`python.exe newsletter_digest.py` in this folder (set the env vars in the task).
-
-**GitHub Actions** — fork the repo, add **your own** repo secrets for each
-variable, and run `newsletter_digest.py` on a `schedule:` cron. Because the
-secrets live in *your* fork's settings, nothing sensitive is ever committed.
-
-## Hosting it for others
-
-The web tool defaults to `127.0.0.1` so it's private to your machine. You *can*
-run it for other people, but then their inbox passwords and API keys pass through
-your server — so only do this if you'll:
-
-- serve it over **HTTPS** (put it behind a reverse proxy / tunnel),
-- and be transparent that credentials are used in-memory only and never stored.
-
-Bind it wider with `HOST=0.0.0.0 PORT=8000 python app.py`. The safest, most
-private setup remains: everyone runs their own copy locally.
+---
 
 ## Notes & tuning
 
-- **Newsletter detection** uses the `List-Unsubscribe` header, which virtually
-  all real newsletters send — so regular personal email is ignored automatically.
-- **Categories** live in `CATEGORIES` near the top of `newsletter_digest.py` —
-  edit them to match what you actually subscribe to.
-- **Model name:** `DIGEST_MODEL` (CLI) / the Model field (web) default to a Haiku
-  model. If the API rejects it, check docs.claude.com for the current model
-  string.
-- **Cost control:** each newsletter is truncated to ~3,500 characters before
-  summarising, and batched 5 per API call.
+- **Newsletter detection** uses the `List-Unsubscribe` header, so ordinary
+  personal mail is ignored automatically.
+- **Categories** live in `CATEGORIES` near the top of `newsletter_digest.py`.
+- **Model** defaults to a Haiku model; change it per-account in Settings or via
+  `DIGEST_MODEL` for the CLI. Check docs.claude.com for current model strings.
+- **Cost control:** each newsletter is truncated to ~3,500 chars and batched 5
+  per API call.
 
 ## Project layout
 
 | File | What it is |
 | --- | --- |
-| `app.py` | The web app — Flask frontend (onboarding + on-device settings) around the engine. Runs locally with `python app.py`. |
-| `api/index.py` | Vercel serverless entry point — serves the same `app`. |
-| `vercel.json` | Vercel routing + function config. |
-| `newsletter_digest.py` | The engine: IMAP fetch, Claude summaries, HTML digest. Usable as a CLI on its own. |
-| `sample_digest.html` | An example of what the finished digest looks like. |
-| `config.example.env` | Template for the CLI's `.env` (copy to `.env`). |
-| `requirements.txt` | Python dependencies. |
+| `app.py` | The account web app: login, dashboard, setup, digest views. Starts the scheduler. |
+| `store.py` | SQLite persistence + credential encryption (Fernet) + password hashing. |
+| `worker.py` | Daily-refresh logic, the background scheduler, and a `python worker.py` cron entry. |
+| `newsletter_digest.py` | The engine: IMAP fetch, Claude summaries, HTML digest. Also a standalone CLI. |
+| `Dockerfile` / `Procfile` | Deploy to a container / PaaS. |
+| `api/index.py` / `vercel.json` | Optional Vercel entry (see the Vercel note). |
+| `sample_digest.html` | Example of the finished digest. |
+| `config.example.env` | Template for the CLI's `.env`. |
 
 ## Contributing
 
-Issues and PRs welcome — this is meant to help people read newsletters without
-the inbox clutter. MIT licensed; see [LICENSE](LICENSE).
+Issues and PRs welcome — this exists to help people read newsletters without the
+inbox clutter. MIT licensed; see [LICENSE](LICENSE).

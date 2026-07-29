@@ -21,3 +21,9 @@ run.log
 
 # Vercel
 .vercel
+
+# App data & secrets (account mode)
+*.db
+*.sqlite
+*.sqlite3
+.app_secret
