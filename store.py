@@ -368,6 +368,56 @@ def latest_digest_time(user_id):
     return row["created_at"] if row else None
 
 
+# --------------------------------------------------------------------------- #
+# Demo account (lets you try the app without connecting a real inbox)
+# --------------------------------------------------------------------------- #
+
+DEMO_EMAIL = "demo@readmynewsletter.app"
+DEMO_PASSWORD = "demo1234"
+
+
+def _demo_digest_html():
+    """Use the bundled sample digest if present; otherwise a small placeholder.
+    Must contain a <body> tag so the reader toolbar can be injected."""
+    sample = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_digest.html")
+    try:
+        with open(sample, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            "<title>Demo digest</title></head><body style='font-family:Georgia,serif;"
+            "max-width:640px;margin:40px auto;padding:0 20px'>"
+            "<h1>Your demo digest</h1><p>This is a sample. Connect your own inbox "
+            "in Settings to get real newsletter summaries here.</p></body></html>"
+        )
+
+
+def ensure_demo():
+    """Idempotently create the demo user + a seeded connection + sample digest,
+    and return the demo user's id. Safe to call on every demo login."""
+    user = user_by_email(DEMO_EMAIL)
+    if user:
+        uid = user["id"]
+    else:
+        try:
+            uid = create_user(DEMO_EMAIL, DEMO_PASSWORD)
+        except Exception:  # noqa: BLE001  (concurrent create -> unique clash)
+            existing = user_by_email(DEMO_EMAIL)
+            uid = existing["id"] if existing else None
+            if uid is None:
+                raise
+    if not get_connection(uid):
+        save_connection(uid, {
+            "imap_host": "imap.example.com", "imap_port": 993, "imap_user": DEMO_EMAIL,
+            "imap_password": "demo", "imap_folder": "INBOX", "api_key": "", "model": "",
+            "days": 7, "use_ai": False, "include_read": False, "auto_refresh": False,
+        })
+    if not list_digests(uid):
+        add_digest(uid, _demo_digest_html(), "last 7 days", 6, 24)
+    return uid
+
+
 # Initialise on import. Never let a transient DB hiccup crash app startup /
 # import (which on serverless would surface as FUNCTION_INVOCATION_FAILED);
 # routes re-run init on demand via ensure_db().
@@ -380,6 +430,11 @@ def ensure_db():
         return
     init_db()
     _DB_READY = True
+    # Seed the demo account so both the button and the login form work.
+    try:
+        ensure_demo()
+    except Exception as exc:  # noqa: BLE001  (never let seeding break real logins)
+        print(f"[store] demo seed skipped: {exc}")
 
 
 try:

@@ -132,6 +132,19 @@ def login():
     return redirect(url_for("dashboard"))
 
 
+@app.get("/demo")
+def demo_login():
+    """One-click dummy login — seeds a demo account with a sample digest so you
+    can explore the dashboard without connecting a real inbox."""
+    store.ensure_db()
+    uid = store.ensure_demo()
+    session.clear()
+    session["uid"] = uid
+    csrf_token()
+    flash("You're in the demo account. Explore the dashboard — or connect your own inbox in Settings.")
+    return redirect(url_for("dashboard"))
+
+
 @app.post("/logout")
 @login_required
 def logout():
@@ -248,6 +261,12 @@ def view_digest(digest_id):
         abort(404)
     html = _with_reader_toolbar(row["html"])
     return Response(html, mimetype="text/html")
+
+
+@app.errorhandler(404)
+def not_found(_e):
+    # Any unknown path lands on the home/login page instead of a dead end.
+    return redirect(url_for("index"))
 
 
 @app.get("/healthz")
@@ -389,6 +408,10 @@ LANDING_PAGE = """<!DOCTYPE html><html lang="en"><head>
   </header>
 
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <a class="btn btn--full" href="/demo" style="margin-top:24px">Explore the demo — no signup →</a>
+  <p class="hint" style="text-align:center;margin-top:8px">Or log in with the demo account:
+    <b>demo@readmynewsletter.app</b> / <b>demo1234</b></p>
 
   <div class="tabs">
     <div class="tab {{ 'tab--on' if mode=='login' else '' }}" onclick="show('login')">Log in</div>
