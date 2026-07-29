@@ -63,10 +63,13 @@ time you log in, the newest digest is waiting.
 
 ## Deploy it (persistent host)
 
-The account app needs a persistent disk (for SQLite) and a long-running process
-(for the scheduler), so deploy it as a container / long-lived service — **Railway,
-Render, Fly.io, or any VPS.** Vercel's serverless model can't keep the database
-or run the scheduler on its own (see the note below).
+The account app needs somewhere to persist data and something to trigger the
+daily refresh. Two shapes work:
+
+- **Long-running host** (**Railway, Render, Fly.io, any VPS, Docker**) — uses the
+  built-in SQLite + in-process scheduler. Simplest; nothing external to manage.
+- **Serverless** (**Vercel**) — uses hosted Postgres + Vercel Cron (see
+  [Deploy on Vercel](#deploy-on-vercel) below).
 
 **Docker**
 ```bash
@@ -80,12 +83,28 @@ The volume at `/data` persists the SQLite DB and generated secret.
 `COOKIE_SECURE=1` once you're on HTTPS) as environment variables, and attach a
 persistent volume mounted where `DATABASE_PATH` points.
 
-**Vercel** — the repo still includes `api/index.py` + `vercel.json`, but account
-mode isn't a natural fit there: the filesystem is ephemeral (SQLite would reset)
-and background threads don't persist. To run it on Vercel you'd need an external
-database (e.g. Neon Postgres — would require swapping `store.py`'s SQLite calls)
-and a **Vercel Cron** job hitting `worker.py` daily. For most people a persistent
-host is far simpler.
+### Deploy on Vercel
+
+Vercel is serverless (read-only filesystem, no long-running process), so account
+mode needs a hosted database and a cron trigger — both of which are built in:
+
+1. **Import the repo** into Vercel. `vercel.json` + `api/index.py` are already wired.
+2. **Add a Postgres database.** In the project's *Storage* tab add **Neon** (or any
+   Postgres). This automatically sets `DATABASE_URL` / `POSTGRES_URL` — the app
+   detects it and uses Postgres instead of SQLite. (No env var = it falls back to
+   ephemeral `/tmp` SQLite, which won't persist between requests.)
+3. **Set environment variables** (Project → Settings → Environment Variables):
+   - `APP_SECRET` — a long random string (encrypts stored credentials). **Required
+     and must stay stable**, or logins can't decrypt their secrets.
+   - `CRON_SECRET` — a random string that authorises the daily refresh. Vercel
+     sends it automatically to the cron endpoint.
+   - `COOKIE_SECURE=1` — since Vercel serves HTTPS.
+4. **Redeploy.** The included cron (`vercel.json` → `/tasks/refresh`, daily at
+   07:00 UTC) rebuilds every account's digest. Adjust the schedule there.
+
+That's it — signup, login, onboarding, and the dashboard all work, and data
+persists in Postgres across cold starts. (Prefer not to manage a database? A
+persistent host with the built-in SQLite + scheduler is simpler still.)
 
 ---
 
@@ -165,7 +184,7 @@ Digests land in `digests/digest_YYYY-MM-DD.html`. Schedule with cron:
 | File | What it is |
 | --- | --- |
 | `app.py` | The account web app: login, dashboard, setup, digest views. Starts the scheduler. |
-| `store.py` | SQLite persistence + credential encryption (Fernet) + password hashing. |
+| `store.py` | Persistence (SQLite locally, Postgres via `DATABASE_URL`) + credential encryption (Fernet) + password hashing. |
 | `worker.py` | Daily-refresh logic, the background scheduler, and a `python worker.py` cron entry. |
 | `newsletter_digest.py` | The engine: IMAP fetch, Claude summaries, HTML digest. Also a standalone CLI. |
 | `Dockerfile` / `Procfile` | Deploy to a container / PaaS. |

@@ -6,6 +6,9 @@
       "memory": 1024
     }
   },
+  "crons": [
+    { "path": "/tasks/refresh", "schedule": "0 7 * * *" }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
   ]

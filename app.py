@@ -81,7 +81,10 @@ app.jinja_env.globals["csrf_token"] = csrf_token
 
 
 @app.before_request
-def _csrf_protect():
+def _prepare_request():
+    # Make sure the schema exists (on serverless the import-time init may have
+    # been deferred), then enforce CSRF on state-changing requests.
+    store.ensure_db()
     if request.method == "POST":
         sent = request.form.get("_csrf", "")
         if not sent or sent != session.get("_csrf"):
@@ -250,6 +253,21 @@ def view_digest(digest_id):
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+
+
+@app.get("/tasks/refresh")
+def tasks_refresh():
+    """Daily-refresh entry point for Vercel Cron (or any scheduler).
+    Secured with CRON_SECRET, which Vercel sends as a bearer token."""
+    secret = os.environ.get("CRON_SECRET")
+    if not secret:
+        return {"ok": False, "error": "CRON_SECRET is not set on the server."}, 503
+    auth = request.headers.get("Authorization", "")
+    key = request.args.get("key", "")
+    if auth != f"Bearer {secret}" and key != secret:
+        abort(401)
+    refreshed, skipped, failed = worker.refresh_all_due()
+    return {"ok": True, "refreshed": refreshed, "skipped": skipped, "failed": failed}
 
 
 # --------------------------------------------------------------------------- #
